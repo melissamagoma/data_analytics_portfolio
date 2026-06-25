@@ -31,7 +31,7 @@ Each case study is a self-contained project folder with context, approach, and o
 
 ## Background
 
-Before GitLab, I spent several years at Kenya Revenue Authority in data and process improvement roles, building revenue reporting systems, dashboards, and compliance frameworks across a large public sector organization. That's where I developed the habit of caring about data governance, not just data output.
+Before GitLab, I spent several years in data and process improvement roles, building revenue reporting systems, dashboards, and compliance frameworks across a large public sector organization. That's where I developed the habit of caring about data governance, not just data output.
 
 I'm based in Nairobi, Kenya and work fully remote.
 
