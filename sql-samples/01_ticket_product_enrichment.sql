@@ -5,8 +5,11 @@
   linked issues have been open, and adds dynamic week-over-week date flags
   for both ticket creation and resolution timestamps.
 
-  Use case: powers product category reporting in weekly and monthly executive
-  reporting, and drives bug prioritisation by upvote count.
+  This query is the foundation for the Customer Encountered Issues (CEI)
+  report, which surfaces product quality signals from support ticket patterns
+  and is shared with CTO, CIO, and product leadership for roadmap
+  prioritisation. It also drives bug prioritisation by upvote count in
+  weekly and monthly executive reporting.
 
   Schema: anonymised (originally Snowflake production warehouse)
 */
