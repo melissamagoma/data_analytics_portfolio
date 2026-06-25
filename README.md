@@ -16,7 +16,8 @@ Each case study is a self-contained project folder with context, approach, and o
 | [Ticket-to-Product Attribution](./ticket-product-attribution/) | LLM-powered pipeline that classifies support tickets to product categories at scale, enabling product teams to act on customer signals |
 | [SF-ZD-001: Cross-Platform Data Integrity](./sf-zd-001-data-integrity/) | Root cause investigation into a persistent ~9% metric gap between Snowflake and Zendesk Explore, closed as a documented governance standard |
 | [CES Driver Analysis](./ces-driver-analysis/) | Analytical investigation that proved Requester Wait Time, not MTTR, drives Customer Effort Score, and changed how leadership allocated resources |
-| [Engineering MR Baseline](./engineering-mr-baseline/) | Analysis of 93,089 merge requests across three contributor pools, establishing the data foundation for an agentic MR generation initiative |
+| [Engineering MR Baseline](./engineering-mr-baseline/) |Analysis of 93,089 merge requests across engineering, support, and community contributors, establishing the data foundation for an agentic MR generation initiative |
+| [SQL Samples](./sql-samples/) | Three production Snowflake queries: ticket-to-product enrichment, issue/MR tag parsing, and the WoW report base — powering CEI reporting shared with CTO, CIO, and product teams |
 
 ---
 
@@ -35,4 +36,5 @@ Before GitLab, I spent several years in data and process improvement roles, buil
 
 I'm based in Nairobi, Kenya and work fully remote.
 
-📎 [LinkedIn](https://www.linkedin.com/in/melissamagoma/)
+---
+📎 [LinkedIn](https://www.linkedin.com/in/melissamagoma/) | [GitHub](https://github.com/melissamagoma)
