@@ -1,15 +1,13 @@
 # Dashboards
 
-A production Tableau dashboard built for a B2B SaaS support engineering team, following internal data governance standards. Built on Snowflake via certified dbt models and maintained in a production Tableau environment with role-based access controls.
+Production Tableau dashboards built for a B2B SaaS support engineering team, following internal data governance standards. Built on Snowflake via certified dbt models and maintained in a production Tableau environment with role-based access controls.
 
 ---
 
 ## Support Single Pane of Glass (SPOG) Dashboard
 
 **Audience:** Support Engineering leadership, VP-level stakeholders
-
 **Refresh cadence:** Daily
-
 **Data source:** Snowflake (ticketing system fact tables via certified dbt production models)
 
 ### What it does
@@ -61,6 +59,51 @@ An interactive HTML mock of this dashboard (illustrative data only) replicates t
 
 ---
 
+## Support & Product Unified Dashboard
+
+**Audience:** Support Engineering leadership, R&D Executive Leadership, VP-level stakeholders
+**Refresh cadence:** Daily
+**Data source:** Snowflake (ticketing system and engineering issue tracking fact tables via certified dbt production models)
+
+### What it does
+
+A cross-functional dashboard combining support ticket data with engineering issue and merge request data. Built to surface the relationship between product defect volume and support ticket load — giving both support and engineering leadership a shared view of where the product is generating the most customer friction.
+
+This is the dashboard that required the most data modelling work: joining two separate production fact tables across different schemas, building a canonical product taxonomy to make ticket and engineering data comparable, and maintaining filter consistency across all views.
+
+### Metrics covered
+
+| Metric | Description |
+|---|---|
+| Solved Ticket Volume | Monthly ticket resolution count |
+| AVG CES Score | Average Customer Effort Score (1–7 scale) |
+| Median Requester Wait Time (Days) | Median days tickets spent in a customer-pending state, by product group |
+| Median Time to Resolution (Days) | Median days from ticket creation to resolution, by product group |
+| Open Tagged Issues — Type Mix | Breakdown of open engineering issues by type (bug fix, feature request, unlabelled) |
+| Open Tagged Issues — Severity Mix | Breakdown of open engineering issues by severity (S1–S4) |
+
+### Technical highlights
+
+**Two-tab layout with shared filters**
+
+The dashboard is split into two views — an Overview tab for high-level support health, and a Product Breakdown tab for drilling into performance by product group. All filters (Year, Month, Product Stage, Product Group) are shared across both tabs using Tableau parameters, so a filter change on one tab immediately updates the other.
+
+**Cross-source join via canonical product taxonomy**
+
+The core technical challenge was making support ticket data and engineering issue data comparable. Support tickets are categorised by product at the point of triage; engineering issues use a different labelling system. A canonical product taxonomy (~150 categories) was built and maintained in Snowflake as a reference model, used to join and align both sources consistently across all charts.
+
+**Heat map visualisation for product group trends**
+
+The Product Breakdown tab uses a colour-encoded heat map (light blue to amber to red by intensity) to show RWT and MTTR by product group and month simultaneously. This allows leadership to spot outlier product groups at a glance — for example, a single product group with a spike in one month stands out immediately without needing to scroll through a table.
+
+### Interactive preview
+
+An interactive HTML mock of this dashboard (illustrative data only) replicates the tabbed layout, shared filter behaviour, heat map encoding, and chart types of the production dashboard.
+
+[View interactive dashboard →](https://melissamagoma.github.io/data_analytics_portfolio/dashboards/unified_dashboard_mock.html)
+
+---
+
 ## Additional dashboards
 
 The following dashboards were also built and maintained as part of the same production analytics function. Included here to show scope of ownership — detail is limited due to confidentiality.
@@ -68,10 +111,6 @@ The following dashboards were also built and maintained as part of the same prod
 ### Support Metrics by Product Category
 
 Breaks down ticket volume, MTTR, and engineering involvement by product category using a canonical taxonomy of ~150 categories. Powers a weekly trend analysis shared with Support leadership. The underlying category mapping was built and maintained separately in Snowflake as a reusable reference model.
-
-### Support & Product Unified Dashboard
-
-Cross-functional view combining support ticket data with engineering issue and merge request data. Used to surface the relationship between product defect volume and support ticket load for VP-level audiences. Built on certified dbt production models joining two separate data sources.
 
 ### R&D Escalation Dashboard
 
