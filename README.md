@@ -27,7 +27,7 @@ Each case study is a self-contained project folder with context, approach, and o
 **Data & SQL:** Snowflake, dbt, Fivetran, BigQuery, SQL (advanced)  
 **BI & Visualization:** Tableau, Power BI, Zendesk Explore  
 **AI & Agents:** Anthropic Claude API, LLM prompt engineering, MCP server integrations (Slack, Google Drive, GitLab, Zendesk), agentic workflow design  
-**Other:** Python (scripting), Git, GCP, Zendesk, incident.io
+**Other:** Git, GCP, Zendesk, incident.io
 
 ---
 
