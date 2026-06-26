@@ -53,8 +53,11 @@ Tableau's standard quick filters only work within a single data source. Because 
 
 ### Interactive preview
 
-An interactive HTML mock of this dashboard (illustrative data only) is available at [`spog_dashboard_mock.html`](./spog_dashboard_mock.html). It replicates the layout, chart types, color palette, and filter structure of the production dashboard — including a working Year/Month universal filter to demonstrate the parameter behaviour described above.
+Interactive preview
 
+An interactive HTML mock of this dashboard (illustrative data only) replicates the layout, chart types, color palette, and filter structure of the production dashboard — including a working Year/Month universal filter to demonstrate the parameter behaviour described above.
+
+View interactive dashboard →
 ---
 
 ## Additional dashboards
