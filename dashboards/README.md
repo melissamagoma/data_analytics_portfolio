@@ -7,7 +7,9 @@ Production Tableau dashboards built for a B2B SaaS support engineering team, fol
 ## Support Single Pane of Glass (SPOG) Dashboard
 
 **Audience:** Support Engineering leadership, VP-level stakeholders
+
 **Refresh cadence:** Daily
+
 **Data source:** Snowflake (ticketing system fact tables via certified dbt production models)
 
 ### What it does
@@ -62,7 +64,9 @@ An interactive HTML mock of this dashboard (illustrative data only) replicates t
 ## Support & Product Unified Dashboard
 
 **Audience:** Support Engineering leadership, R&D Executive Leadership, VP-level stakeholders
+
 **Refresh cadence:** Daily
+
 **Data source:** Snowflake (ticketing system and engineering issue tracking fact tables via certified dbt production models)
 
 ### What it does
