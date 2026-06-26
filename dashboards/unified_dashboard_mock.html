@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support & Product Unified Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f0f8; color: #1a1a1a; }
+
+  .dashboard { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; position: relative; }
+  .brand-mark { display: flex; align-items: center; gap: 8px; }
+  .brand-initials { width: 34px; height: 34px; border-radius: 50%; background: #2a6ebb; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; letter-spacing: 0.5px; }
+  .brand-name { font-size: 13px; font-weight: 600; color: #2a6ebb; }
+  .brand-sub { font-size: 11px; color: #999; margin-top: 1px; }
+  .header h1 { font-size: 19px; font-weight: 600; color: #1f1f1f; position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+
+  .main-layout { display: flex; gap: 16px; }
+
+  .sidebar { width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; padding-top: 52px; }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-group label { font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .filter-group select {
+    padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 12px; background: white; color: #1a1a1a; cursor: pointer; width: 100%;
+  }
+
+  .content { flex: 1; min-width: 0; }
+
+  .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid #ddd; }
+  .tab {
+    padding: 8px 20px; font-size: 13px; font-weight: 500; cursor: pointer;
+    border: none; background: none; color: #888; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: all 0.2s;
+  }
+  .tab.active { color: #2a6ebb; border-bottom-color: #2a6ebb; }
+  .tab:hover:not(.active) { color: #444; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .charts-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .charts-grid-2-wide { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+
+  .chart-card { background: white; border-radius: 6px; padding: 16px; border: 1px solid #e0e0e0; }
+  .chart-title { font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 3px; color: #1a1a1a; }
+  .chart-subtitle { font-size: 10px; color: #aaa; text-align: center; margin-bottom: 12px; }
+  .chart-wrap { position: relative; }
+
+  .legend { display: flex; justify-content: center; gap: 12px; margin-top: 8px; font-size: 11px; color: #555; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* Heat map */
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .heatmap-table th { padding: 6px 8px; text-align: center; font-weight: 500; color: #888; font-size: 10px; border-bottom: 1px solid #eee; }
+  .heatmap-table th.row-header { text-align: left; }
+  .heatmap-table td { padding: 5px 8px; text-align: center; font-size: 10px; font-weight: 500; }
+  .heatmap-table td.row-label { text-align: left; color: #444; font-weight: 400; white-space: nowrap; padding-right: 12px; }
+  .heatmap-table tr:hover td { filter: brightness(0.95); }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <div class="header">
+    <div class="brand-mark">
+      <div class="brand-initials">MM</div>
+      <div>
+        <div class="brand-name">MM Analytics</div>
+        <div class="brand-sub">Support Engineering BI</div>
+      </div>
+    </div>
+    <h1>Support &amp; Product Unified Dashboard</h1>
+    <div style="width: 140px;"></div>
+  </div>
+
+  <div class="main-layout">
+
+    <div class="sidebar">
+      <div class="filter-group">
+        <label>Year Filter*</label>
+        <select id="yearFilter">
+          <option value="1">Year 1</option>
+          <option value="2">Year 2</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Month Filter*</label>
+        <select id="monthFilter">
+          <option value="0">All Months</option>
+          <option value="1">Jan</option>
+          <option value="2">Feb</option>
+          <option value="3">Mar</option>
+          <option value="4">Apr</option>
+          <option value="5">May</option>
+          <option value="6">Jun</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Product Stage</label>
+        <select id="stageFilter">
+          <option value="all">All</option>
+          <option value="plan">Plan</option>
+          <option value="create">Create</option>
+          <option value="secure">Secure</option>
+          <option value="ai">AI-powered</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Product Group</label>
+        <select id="groupFilter">
+          <option value="all">All</option>
+          <option value="auth">Authentication</option>
+          <option value="ci">CI Platform</option>
+          <option value="ai">AI Catalog</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Product Category</label>
+        <select id="categoryFilter">
+          <option value="all">All</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="breakdown">Product Breakdown</button>
+      </div>
+
+      <!-- TAB 1: OVERVIEW -->
+      <div class="tab-panel active" id="tab-overview">
+        <div class="charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Solved Ticket Volume</div>
+            <div class="chart-subtitle">Solved At</div>
+            <div class="chart-wrap" style="height:240px;"><canvas id="c1" role="img" aria-label="Monthly solved ticket volume">Monthly ticket volume bar chart.</canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">AVG CES Score</div>
+            <div class="chart-subtitle">Solved At</div>
+            <div class="chart-wrap" style="height:240px;"><canvas id="c2" role="img" aria-label="Monthly average CES score">Monthly CES score bar chart.</canvas></div>
+          </div>
+        </div>
+        <div class="charts-grid-2" style="margin-top:16px;">
+          <div class="chart-card">
+            <div class="chart-title">Median Requester Wait Time (Days)</div>
+            <div class="chart-subtitle">Solved At</div>
+            <div class="chart-wrap" style="height:240px;"><canvas id="c3" role="img" aria-label="Monthly median requester wait time">Monthly RWT bar chart.</canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Median Time to Resolve (Days)</div>
+            <div class="chart-subtitle">Solved At</div>
+            <div class="chart-wrap" style="height:240px;"><canvas id="c4" role="img" aria-label="Monthly median time to resolve">Monthly MTTR bar chart.</canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: PRODUCT BREAKDOWN -->
+      <div class="tab-panel" id="tab-breakdown">
+        <div class="charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Median Requester Wait Time (Days)</div>
+            <div class="chart-subtitle">By Product Group · Solved At</div>
+            <div class="heatmap-wrap"><div id="hm1"></div></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Median Time to Resolution (Days)</div>
+            <div class="chart-subtitle">By Product Group · Solved At</div>
+            <div class="heatmap-wrap"><div id="hm2"></div></div>
+          </div>
+        </div>
+        <div class="charts-grid-2" style="margin-top:16px;">
+          <div class="chart-card">
+            <div class="chart-title">Open Tagged Issues — Type Mix</div>
+            <div class="chart-subtitle">Created At</div>
+            <div class="chart-wrap" style="height:220px;"><canvas id="c5" role="img" aria-label="Issue type mix stacked bar">Issue type mix by month.</canvas></div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#3266AD;"></div>Unlabelled</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#E8841A;"></div>Bug fix</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#e05c5c;"></div>Feature request</div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Open Tagged Issues — Severity Mix</div>
+            <div class="chart-subtitle">Created At</div>
+            <div class="chart-wrap" style="height:220px;"><canvas id="c6" role="img" aria-label="Issue severity mix stacked bar">Issue severity mix by month.</canvas></div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#3266AD;"></div>Unset</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#E8841A;"></div>S1</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#e05c5c;"></div>S2</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#3AADA8;"></div>S3</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#4caf50;"></div>S4</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+Chart.register(ChartDataLabels);
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun'];
+const PRODUCT_GROUPS = [
+  'ai catalog','ai model services','api platform','authentication',
+  'build','ci platform','code review','compliance',
+  'container registry','custom models','database health','pipeline execution'
+];
+
+// Two year datasets
+const RAW = {
+  1: {
+    volume: [2745,3095,3284,3309,3140,2959],
+    ces:    [6.50,6.25,6.12,6.23,6.05,6.30],
+    rwt:    [0.44,0.56,0.72,0.68,0.53,0.57],
+    mttr:   [2.30,3.72,4.01,4.09,3.68,3.88],
+    hmRwt: {
+      'ai catalog':         [0.02,null,8.09,5.72,0.74,11.61],
+      'ai model services':  [1.97,1.94,null,0.83,1.53,45.01],
+      'api platform':       [null,null,null,93.84,null,null],
+      'authentication':     [4.68,1.81,2.79,1.34,3.06,1.90],
+      'build':              [7.31,60.24,null,1.09,0.78,4.02],
+      'ci platform':        [2.02,3.68,1.26,6.41,0.01,6.65],
+      'code review':        [2.45,5.11,4.17,5.06,6.08,2.30],
+      'compliance':         [0.95,0.06,3.00,2.29,null,4.31],
+      'container registry': [24.02,4.14,1.50,1.02,1.96,13.90],
+      'custom models':      [null,64.17,null,null,6.64,1.35],
+      'database health':    [null,null,3.91,48.60,null,null],
+      'pipeline execution': [3.20,2.10,4.50,3.80,2.90,5.10],
+    },
+    hmMttr: {
+      'ai catalog':         [0.78,null,11.66,7.04,13.78,24.25],
+      'ai model services':  [14.37,2.07,null,1.80,8.61,75.99],
+      'api platform':       [null,null,null,116.03,null,null],
+      'authentication':     [12.05,9.96,6.19,6.59,10.95,11.41],
+      'build':              [11.66,71.93,null,7.07,6.67,19.79],
+      'ci platform':        [5.84,8.58,6.16,18.45,0.08,26.75],
+      'code review':        [6.39,14.94,6.26,8.79,14.91,4.19],
+      'compliance':         [8.04,0.08,3.13,3.47,null,27.66],
+      'container registry': [34.68,8.03,7.57,13.08,4.45,14.36],
+      'custom models':      [null,69.76,null,23.51,1.67,16.15],
+      'database health':    [null,null,3.02,null,null,0.31],
+      'pipeline execution': [8.10,12.30,9.40,11.20,7.80,14.50],
+    },
+    typeMix: {
+      unlabelled:  [26,19,20,18,26,24],
+      bugfix:      [28,28,38,36,33,30],
+      feature:     [46,53,42,46,41,46],
+    },
+    sevMix: {
+      unset: [71,73,72,69,68,77],
+      s1:    [8,7,6,8,9,6],
+      s2:    [10,11,12,12,11,10],
+      s3:    [8,7,8,9,10,6],
+      s4:    [3,2,2,2,2,1],
+    }
+  },
+  2: {
+    volume: [2550,2920,3100,3050,2880,2750],
+    ces:    [6.30,6.10,5.95,6.15,5.88,6.05],
+    rwt:    [0.51,0.62,0.79,0.74,0.60,0.63],
+    mttr:   [2.80,4.10,4.40,4.50,4.00,4.20],
+    hmRwt: {
+      'ai catalog':         [0.05,null,9.20,6.10,0.90,12.40],
+      'ai model services':  [2.10,2.05,null,0.95,1.70,47.20],
+      'api platform':       [null,null,null,98.10,null,null],
+      'authentication':     [5.10,2.00,3.10,1.50,3.30,2.10],
+      'build':              [8.20,62.10,null,1.20,0.90,4.50],
+      'ci platform':        [2.20,3.90,1.40,6.80,0.05,7.10],
+      'code review':        [2.70,5.40,4.50,5.30,6.40,2.60],
+      'compliance':         [1.10,0.08,3.20,2.50,null,4.60],
+      'container registry': [25.50,4.40,1.70,1.20,2.10,14.50],
+      'custom models':      [null,67.30,null,null,7.10,1.60],
+      'database health':    [null,null,4.10,51.20,null,null],
+      'pipeline execution': [3.50,2.40,4.80,4.10,3.20,5.50],
+    },
+    hmMttr: {
+      'ai catalog':         [0.90,null,12.40,7.60,14.50,25.80],
+      'ai model services':  [15.20,2.30,null,2.10,9.20,78.40],
+      'api platform':       [null,null,null,119.50,null,null],
+      'authentication':     [13.10,10.50,6.80,7.10,11.50,12.20],
+      'build':              [12.40,73.50,null,7.60,7.10,20.80],
+      'ci platform':        [6.20,9.10,6.80,19.20,0.10,27.90],
+      'code review':        [6.90,15.60,6.80,9.20,15.50,4.60],
+      'compliance':         [8.60,0.10,3.40,3.70,null,28.90],
+      'container registry': [36.10,8.50,8.10,13.90,4.80,15.10],
+      'custom models':      [null,71.20,null,24.80,1.90,17.20],
+      'database health':    [null,null,3.30,null,null,0.40],
+      'pipeline execution': [8.80,13.10,10.20,12.10,8.40,15.30],
+    },
+    typeMix: {
+      unlabelled:  [24,18,19,17,25,23],
+      bugfix:      [30,30,40,38,35,32],
+      feature:     [46,52,41,45,40,45],
+    },
+    sevMix: {
+      unset: [69,71,70,67,66,75],
+      s1:    [9,8,7,9,10,7],
+      s2:    [11,12,13,13,12,11],
+      s3:    [9,8,9,10,11,7],
+      s4:    [2,1,1,1,1,0],
+    }
+  }
+};
+
+// Stage and group multipliers — subtle but visible shifts in data
+const STAGE_MODIFIERS = {
+  all:    { volume: 1.00, ces: 1.00, rwt: 1.00, mttr: 1.00, hm: 1.00 },
+  plan:   { volume: 0.82, ces: 1.04, rwt: 0.88, mttr: 0.91, hm: 0.85 },
+  create: { volume: 1.12, ces: 0.97, rwt: 1.09, mttr: 1.14, hm: 1.10 },
+  secure: { volume: 0.74, ces: 1.06, rwt: 0.78, mttr: 0.82, hm: 0.75 },
+  ai:     { volume: 0.63, ces: 0.93, rwt: 1.22, mttr: 1.35, hm: 1.28 },
+};
+
+const GROUP_MODIFIERS = {
+  all:  { volume: 1.00, ces: 1.00, rwt: 1.00, mttr: 1.00, hm: 1.00 },
+  auth: { volume: 0.18, ces: 1.02, rwt: 0.85, mttr: 0.90, hm: 0.88 },
+  ci:   { volume: 0.22, ces: 0.96, rwt: 1.15, mttr: 1.20, hm: 1.18 },
+  ai:   { volume: 0.14, ces: 0.91, rwt: 1.30, mttr: 1.45, hm: 1.38 },
+};
+
+// Which heatmap rows to show when a group is selected
+const GROUP_ROWS = {
+  all:  null,
+  auth: ['authentication','compliance','code review'],
+  ci:   ['ci platform','build','pipeline execution'],
+  ai:   ['ai catalog','ai model services','custom models'],
+};
+
+function applyModifiers(arr, mod, isInt) {
+  return arr.map(v => {
+    if (v === null || v === undefined) return v;
+    const result = v * mod;
+    return isInt ? Math.round(result) : Math.round(result * 100) / 100;
+  });
+}
+
+function applyHmModifiers(hmData, mod, visibleRows) {
+  const result = {};
+  const rows = visibleRows || PRODUCT_GROUPS;
+  rows.forEach(g => {
+    const row = hmData[g] || Array(6).fill(null);
+    result[g] = row.map(v => v === null ? null : Math.round(v * mod * 100) / 100);
+  });
+  return result;
+}
+
+// Color scale for heatmap
+function heatColor(val, max) {
+  if (val === null || val === undefined) return '#f5f5f5';
+  const t = Math.min(val / max, 1);
+  if (t < 0.3) return `rgba(180,210,240,${0.3 + t})`;
+  if (t < 0.6) return `rgba(240,180,60,${0.5 + t * 0.5})`;
+  return `rgba(220,80,50,${0.6 + t * 0.4})`;
+}
+
+function getMax(hmData) {
+  let max = 0;
+  Object.values(hmData).forEach(row => row.forEach(v => { if (v && v > max) max = v; }));
+  return max;
+}
+
+function buildHeatmap(containerId, hmData, labels, visibleRows) {
+  const rows = visibleRows || PRODUCT_GROUPS;
+  const max = getMax(hmData);
+  let html = '<table class="heatmap-table"><thead><tr><th class="row-header">Product Group</th>';
+  labels.forEach(m => { html += `<th>${m}</th>`; });
+  html += '</tr></thead><tbody>';
+  rows.forEach(group => {
+    const row = hmData[group] || [];
+    html += `<tr><td class="row-label">${group}</td>`;
+    labels.forEach((m, i) => {
+      const val = row[i];
+      const display = val !== null && val !== undefined ? val.toFixed(2) : '';
+      const bg = heatColor(val, max);
+      const textColor = val > max * 0.5 ? '#fff' : '#333';
+      html += `<td style="background:${bg};color:${textColor};">${display}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById(containerId).innerHTML = html;
+}
+
+const xScale = { grid:{display:false}, ticks:{font:{size:10},color:'#888',autoSkip:false} };
+const yScale = { grid:{color:'#f0f0f0'}, ticks:{font:{size:10},color:'#888'} };
+const baseOpts = {
+  responsive:true, maintainAspectRatio:false, animation:{duration:350},
+  plugins:{ legend:{display:false}, datalabels:{display:false} }
+};
+const labelTop = (fmt) => ({ display:true, anchor:'end', align:'end', color:'#444', font:{size:9,weight:'600'}, formatter: fmt || (v=>v) });
+
+let charts = {};
+
+function destroyCharts() {
+  ['c1','c2','c3','c4','c5','c6'].forEach(id => { if(charts[id]) { charts[id].destroy(); delete charts[id]; } });
+}
+
+function getMonthLabels(monthIdx) {
+  return monthIdx === 0 ? MONTHS : [MONTHS[monthIdx-1]];
+}
+
+function getSlice(arr, monthIdx) {
+  return monthIdx === 0 ? arr : [arr[monthIdx-1]];
+}
+
+function getHmLabels(monthIdx) {
+  return monthIdx === 0 ? MONTHS : [MONTHS[monthIdx-1]];
+}
+
+function getHmSliced(hmData, monthIdx) {
+  const result = {};
+  PRODUCT_GROUPS.forEach(g => {
+    const row = hmData[g] || Array(6).fill(null);
+    result[g] = monthIdx === 0 ? row : [row[monthIdx-1]];
+  });
+  return result;
+}
+
+function refresh() {
+  const year = +document.getElementById('yearFilter').value;
+  const month = +document.getElementById('monthFilter').value;
+  const stage = document.getElementById('stageFilter').value;
+  const group = document.getElementById('groupFilter').value;
+  const d = RAW[year];
+  const labels = getMonthLabels(month);
+
+  const sm = STAGE_MODIFIERS[stage] || STAGE_MODIFIERS.all;
+  const gm = GROUP_MODIFIERS[group] || GROUP_MODIFIERS.all;
+  const volMod  = sm.volume * gm.volume;
+  const cesMod  = sm.ces    * gm.ces;
+  const rwtMod  = sm.rwt    * gm.rwt;
+  const mttrMod = sm.mttr   * gm.mttr;
+  const hmMod   = sm.hm     * gm.hm;
+  const visibleRows = GROUP_ROWS[group];
+
+  const volume = applyModifiers(getSlice(d.volume, month), volMod, true);
+  const ces    = applyModifiers(getSlice(d.ces,    month), cesMod, false);
+  const rwt    = applyModifiers(getSlice(d.rwt,    month), rwtMod, false);
+  const mttr   = applyModifiers(getSlice(d.mttr,   month), mttrMod, false);
+
+  destroyCharts();
+
+  // Overview charts
+  charts.c1 = new Chart(document.getElementById('c1'), {
+    type:'bar', data:{ labels, datasets:[{ data: volume, backgroundColor:'#3266AD', borderRadius:2,
+      datalabels:{...labelTop(), formatter:v=>v.toLocaleString()} }] },
+    options:{...baseOpts, plugins:{legend:{display:false},datalabels:{...labelTop(),formatter:v=>v.toLocaleString()}},
+      scales:{ x:xScale, y:{...yScale, beginAtZero:true, max:Math.max(...volume)*1.18, ticks:{callback:v=>(v/1000).toFixed(1)+'K',font:{size:10},color:'#888'}} }}
+  });
+
+  charts.c2 = new Chart(document.getElementById('c2'), {
+    type:'bar', data:{ labels, datasets:[{ data: ces, backgroundColor:'#9B6B9B', borderRadius:2,
+      datalabels:{...labelTop(),formatter:v=>v.toFixed(2)} }] },
+    options:{...baseOpts, plugins:{legend:{display:false},datalabels:{...labelTop(),formatter:v=>v.toFixed(2)}},
+      scales:{ x:xScale, y:{...yScale, min:0, max:7.5, ticks:{font:{size:10},color:'#888'}} }}
+  });
+
+  charts.c3 = new Chart(document.getElementById('c3'), {
+    type:'bar', data:{ labels, datasets:[{ data: rwt, backgroundColor:'#D4A820', borderRadius:2,
+      datalabels:{...labelTop(),formatter:v=>v.toFixed(2)} }] },
+    options:{...baseOpts, plugins:{legend:{display:false},datalabels:{...labelTop(),formatter:v=>v.toFixed(2)}},
+      scales:{ x:xScale, y:{...yScale, beginAtZero:true, max:Math.max(...rwt)*1.3, ticks:{font:{size:10},color:'#888'}} }}
+  });
+
+  charts.c4 = new Chart(document.getElementById('c4'), {
+    type:'bar', data:{ labels, datasets:[{ data: mttr, backgroundColor:'#4caf50', borderRadius:2,
+      datalabels:{...labelTop(),formatter:v=>v.toFixed(2)} }] },
+    options:{...baseOpts, plugins:{legend:{display:false},datalabels:{...labelTop(),formatter:v=>v.toFixed(2)}},
+      scales:{ x:xScale, y:{...yScale, beginAtZero:true, max:Math.max(...mttr)*1.3, ticks:{font:{size:10},color:'#888'}} }}
+  });
+
+  // Heatmaps — apply modifier and filter rows if group selected
+  const hmLabels = getHmLabels(month);
+  const hmRwtSliced = getHmSliced(d.hmRwt, month);
+  const hmMttrSliced = getHmSliced(d.hmMttr, month);
+  buildHeatmap('hm1', applyHmModifiers(hmRwtSliced, hmMod, visibleRows), hmLabels, visibleRows);
+  buildHeatmap('hm2', applyHmModifiers(hmMttrSliced, hmMod, visibleRows), hmLabels, visibleRows);
+
+  // Stacked bars — type mix
+  const tm = d.typeMix;
+  charts.c5 = new Chart(document.getElementById('c5'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { data:getSlice(tm.unlabelled,month), backgroundColor:'#3266AD', label:'Unlabelled',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+      { data:getSlice(tm.bugfix,month), backgroundColor:'#E8841A', label:'Bug fix',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+      { data:getSlice(tm.feature,month), backgroundColor:'#e05c5c', label:'Feature request',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+    ]},
+    options:{...baseOpts, plugins:{legend:{display:false}},
+      scales:{ x:{...xScale,stacked:true}, y:{...yScale,stacked:true,max:100,ticks:{callback:v=>v+'%',font:{size:10},color:'#888'}} }}
+  });
+
+  const sv = d.sevMix;
+  charts.c6 = new Chart(document.getElementById('c6'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { data:getSlice(sv.unset,month), backgroundColor:'#3266AD', label:'Unset',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+      { data:getSlice(sv.s1,month), backgroundColor:'#E8841A', label:'S1',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+      { data:getSlice(sv.s2,month), backgroundColor:'#e05c5c', label:'S2',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+      { data:getSlice(sv.s3,month), backgroundColor:'#3AADA8', label:'S3',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+      { data:getSlice(sv.s4,month), backgroundColor:'#4caf50', label:'S4',
+        datalabels:{display:true,anchor:'center',align:'center',color:'white',font:{size:9,weight:'600'},formatter:v=>v+'%'} },
+    ]},
+    options:{...baseOpts, plugins:{legend:{display:false}},
+      scales:{ x:{...xScale,stacked:true}, y:{...yScale,stacked:true,max:100,ticks:{callback:v=>v+'%',font:{size:10},color:'#888'}} }}
+  });
+}
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    setTimeout(() => refresh(), 10);
+  });
+});
+
+document.getElementById('yearFilter').addEventListener('change', refresh);
+document.getElementById('monthFilter').addEventListener('change', refresh);
+document.getElementById('stageFilter').addEventListener('change', refresh);
+document.getElementById('groupFilter').addEventListener('change', refresh);
+
+refresh();
+</script>
+</body>
+</html>
