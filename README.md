@@ -18,6 +18,7 @@ Each case study is a self-contained project folder with context, approach, and o
 | [CES Driver Analysis](./ces-driver-analysis/) | Analytical investigation that proved Requester Wait Time, not MTTR, drives Customer Effort Score, and changed how leadership allocated resources |
 | [Engineering MR Baseline](./engineering-mr-baseline/) |Analysis of 93,089 merge requests across engineering, support, and community contributors, establishing the data foundation for an agentic MR generation initiative |
 | [SQL Samples](./sql-samples/) | Three production Snowflake queries: ticket-to-product enrichment, issue/MR tag parsing, and the WoW report base — powering CEI reporting shared with CTO, CIO, and product teams |
+| [Dashboards](./dashboards/) | Production Tableau dashboard for a B2B SaaS support team — eight KPIs in a single pane of glass view, with a working universal filter built on Tableau parameters across multiple data sources |
 
 ---
 
