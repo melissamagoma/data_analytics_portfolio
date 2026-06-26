@@ -7,7 +7,9 @@ A production Tableau dashboard built for a B2B SaaS support engineering team, fo
 ## Support Single Pane of Glass (SPOG) Dashboard
 
 **Audience:** Support Engineering leadership, VP-level stakeholders
+
 **Refresh cadence:** Daily
+
 **Data source:** Snowflake (ticketing system fact tables via certified dbt production models)
 
 ### What it does
