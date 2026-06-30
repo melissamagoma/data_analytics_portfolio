@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WoW Report Base: Engineering-Involved Tickets — Melissa Magoma</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root {
+    --sage-dark: #2D4A2D;
+    --sage-mid: #5A8A5A;
+    --sage-light: #C8DBC4;
+    --sidebar-bg: #F2F7F2;
+    --body: #374137;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #fafcfa;
+    color: var(--body);
+    padding: 2.5rem 1.5rem;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .back-link {
+    display: inline-block;
+    font-size: 13px;
+    color: var(--sage-mid);
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+  }
+  .back-link:hover { text-decoration: underline; }
+  h1 {
+    font-size: 23px;
+    color: var(--sage-dark);
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--sage-mid);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .description {
+    background: var(--sidebar-bg);
+    border-left: 3px solid var(--sage-mid);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    font-size: 14px;
+    color: var(--body);
+    margin-bottom: 1.75rem;
+  }
+  .code-block {
+    background: #1e1e1e;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(45,74,45,0.15);
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.1rem;
+    background: #161616;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .code-filename {
+    font-size: 12px;
+    color: #9fc99f;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .copy-btn {
+    font-size: 12px;
+    color: #cfe8cf;
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 5px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.16); }
+  .highlight {
+    margin: 0 !important;
+    padding: 1.25rem 1.5rem !important;
+    overflow-x: auto;
+  }
+  .highlight pre {
+    margin: 0 !important;
+    font-family: "SF Mono", Consolas, "Courier New", monospace !important;
+    font-size: 13px !important;
+    line-height: 1.65 !important;
+  }
+  .footer {
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: #94a894;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../README.md" class="back-link">&larr; Back to Portfolio</a>
+  <h1>WoW Report Base: Engineering-Involved Tickets</h1>
+  <div class="subtitle">SQL &middot; SNOWFLAKE &middot; PRODUCTION SCHEMA (ANONYMISED)</div>
+  <div class="description">Pulls engineering-involved tickets for a given week, enriched with product group and category data, with duplicate and follow-up tickets excluded via tag-based logic. Output feeds the weekly Support Bulletin and the Top 10 MTTR product category analysis in the Week-over-Week (WoW) report shared with VP and E-Group audiences.</div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-filename">wow_report_engineering_involved_tickets.sql</span>
+      <button class="copy-btn" onclick="copyCode()">Copy</button>
+    </div>
+    <div class="highlight" style="background: #202020"><pre style="line-height: 125%;"><span></span><span style="color: #ABABAB; font-style: italic">/*</span>
+<span style="color: #ABABAB; font-style: italic">  WoW Report Base: Engineering-Involved Tickets with Product Attribution</span>
+<span style="color: #ABABAB; font-style: italic">  ----------------------------------------------------------------------</span>
+<span style="color: #ABABAB; font-style: italic">  Pulls engineering-involved tickets for a given week, enriched with product</span>
+<span style="color: #ABABAB; font-style: italic">  group and category data, and filtered to remove duplicates and follow-up</span>
+<span style="color: #ABABAB; font-style: italic">  tickets using tag-based exclusion logic.</span>
+
+<span style="color: #ABABAB; font-style: italic">  Output feeds the weekly Support Bulletin and the Top 10 MTTR product</span>
+<span style="color: #ABABAB; font-style: italic">  category analysis in the Week-over-Week (WoW) report, shared with VP</span>
+<span style="color: #ABABAB; font-style: italic">  and E-Group audiences.</span>
+
+<span style="color: #ABABAB; font-style: italic">  Key design decisions:</span>
+<span style="color: #ABABAB; font-style: italic">  - ARRAY_CONTAINS used on the pre-split tags array to exclude duplicate and</span>
+<span style="color: #ABABAB; font-style: italic">    follow-up tickets cleanly without re-parsing the tag string</span>
+<span style="color: #ABABAB; font-style: italic">  - Tickets where both product_group and product_category are NULL are excluded</span>
+<span style="color: #ABABAB; font-style: italic">    since they cannot be attributed to a product area</span>
+<span style="color: #ABABAB; font-style: italic">  - Time to resolution converted from minutes to hours inline</span>
+<span style="color: #ABABAB; font-style: italic">  - Dynamic WoW date flags added via dim_date joins for both created and solved</span>
+<span style="color: #ABABAB; font-style: italic">    timestamps, enabling consistent week-over-week comparisons</span>
+
+<span style="color: #ABABAB; font-style: italic">  Schema: anonymised (originally Snowflake production warehouse)</span>
+<span style="color: #ABABAB; font-style: italic">*/</span>
+
+<span style="color: #6EBF26; font-weight: bold">WITH</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_data</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.ticket_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.has_plan,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.solved_at,</span>
+<span style="color: #666">      </span><span style="color: #2FBCCD">DATE</span><span style="color: #D0D0D0">(fct_ticket.solved_at)</span><span style="color: #666">                              </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_at_date,</span>
+<span style="color: #666">      </span><span style="color: #2FBCCD">DATE</span><span style="color: #D0D0D0">(fct_ticket.created_at)</span><span style="color: #666">                             </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_at_date,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.is_engineering_involved,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.requester_wait_time_hours,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">(fct_ticket.time_to_last_resolution_minutes)</span><span style="color: #666"> </span><span style="color: #D0D0D0">/</span><span style="color: #666"> </span><span style="color: #51B2FD">60</span><span style="color: #666">       </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">time_to_last_resolution_hrs,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.customer_wait_time_ratio_last_resolution,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.is_follow_up,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_ticket.linked_issue_or_mr,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_ticket.linked_issue_url,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_ticket.ticket_tags,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_ticket.ticket_tags_array</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.fct_ticket</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.dim_ticket</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">fct_ticket.ticket_id</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">dim_ticket.ticket_id</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">fct_ticket.has_plan</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">TRUE</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #D0D0D0">issue_data</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.ticket_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_title,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_url,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_status,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_type,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.milestone_title,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.product_group,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.product_stage,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.product_category,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.upvote_count,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.severity,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.priority,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.issue_closed_at</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.mart_user_request</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">user_request</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.dim_issue</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">user_request.issue_id</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">dim_issue.issue_id</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #D0D0D0">joined</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.ticket_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.has_plan,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.solved_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.solved_at_date,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.created_at_date,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.is_engineering_involved,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.requester_wait_time_hours,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.time_to_last_resolution_hrs,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.customer_wait_time_ratio_last_resolution,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.is_follow_up,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.linked_issue_or_mr,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.linked_issue_url,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.ticket_tags,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_data.ticket_tags_array,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_title,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_url,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_status,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_type,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.milestone_title,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.product_group,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.product_stage,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.product_category,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.upvote_count,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.severity,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.priority,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_closed_at,</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">CASE</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">WHEN</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.issue_closed_at</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">IS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NULL</span>
+<span style="color: #666">              </span><span style="color: #6EBF26; font-weight: bold">THEN</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEDIFF(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.issue_created_at,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">CURRENT_DATE</span><span style="color: #D0D0D0">())</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">ELSE</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEDIFF(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.issue_created_at,</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.issue_closed_at)</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">END</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">days_open</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_data</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_data.ticket_id</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.ticket_id</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #6EBF26; font-weight: bold">final</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">joined.*,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">created_dim.first_day_of_week</span><span style="color: #666">                                              </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_week_start,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.first_day_of_week)</span><span style="color: #666">                         </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_week_start_sunday,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">IFF(DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.first_day_of_week)</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.current_first_day_of_week),</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">TRUE</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                            </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_created_this_week,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">IFF(DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.first_day_of_week)</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">7</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.current_first_day_of_week)),</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">TRUE</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                            </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_created_last_week,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">IFF(DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.first_day_of_week)</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">14</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.current_first_day_of_week)),</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">TRUE</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                            </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_created_week_before_last,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">solved_dim.first_day_of_week</span><span style="color: #666">                                               </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_week_start,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.first_day_of_week)</span><span style="color: #666">                          </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_week_start_sunday,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">IFF(DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.first_day_of_week)</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.current_first_day_of_week),</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">TRUE</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                            </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_solved_this_week,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">IFF(DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.first_day_of_week)</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">7</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.current_first_day_of_week)),</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">TRUE</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                            </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_solved_last_week,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">IFF(DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.first_day_of_week)</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">14</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">DATEADD(</span><span style="color: #ED9D13">&#39;day&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">-</span><span style="color: #51B2FD">1</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.current_first_day_of_week)),</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">TRUE</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                            </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_solved_week_before_last</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">joined</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.dim_date</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">joined.created_at_date</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">created_dim.date_actual</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.dim_date</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">joined.solved_at_date</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_dim.date_actual</span>
+<span style="color: #D0D0D0">)</span>
+
+<span style="color: #ABABAB; font-style: italic">-- Engineering-involved tickets for the reporting week, deduplicated via tag exclusions</span>
+<span style="color: #6EBF26; font-weight: bold">SELECT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">DISTINCT</span>
+<span style="color: #666">    </span><span style="color: #D0D0D0">ticket_id,</span>
+<span style="color: #666">    </span><span style="color: #D0D0D0">requester_wait_time_hours,</span>
+<span style="color: #666">    </span><span style="color: #D0D0D0">time_to_last_resolution_hrs,</span>
+<span style="color: #666">    </span><span style="color: #D0D0D0">product_group,</span>
+<span style="color: #666">    </span><span style="color: #D0D0D0">product_category</span>
+<span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">final</span>
+<span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_at</span><span style="color: #666"> </span><span style="color: #D0D0D0">&gt;=</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;2026-05-10&#39;</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #D0D0D0">solved_at</span><span style="color: #666"> </span><span style="color: #D0D0D0">&lt;</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;2026-05-17&#39;</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_id</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">IS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NOT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NULL</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NOT</span><span style="color: #666"> </span><span style="color: #D0D0D0">(product_group</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">IS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NULL</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #D0D0D0">product_category</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">IS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NULL</span><span style="color: #D0D0D0">)</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_engineering_involved</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">TRUE</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #D0D0D0">is_follow_up</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">FALSE</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NOT</span><span style="color: #666"> </span><span style="color: #D0D0D0">ARRAY_CONTAINS(</span><span style="color: #ED9D13">&#39;closed_by_merge&#39;</span><span style="color: #D0D0D0">::VARIANT,</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_tags_array)</span><span style="color: #666">   </span><span style="color: #ABABAB; font-style: italic">-- excludes merged duplicates</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NOT</span><span style="color: #666"> </span><span style="color: #D0D0D0">ARRAY_CONTAINS(</span><span style="color: #ED9D13">&#39;followup_ticket&#39;</span><span style="color: #D0D0D0">::VARIANT,</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_tags_array);</span><span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- excludes follow-up tickets</span>
+</pre></div>
+
+  </div>
+  <div class="footer">Schema and identifiers anonymised for public portfolio use.</div>
+</div>
+<script>
+function copyCode() {
+  const codeEl = document.querySelector('.highlight pre');
+  const text = codeEl.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = original, 1500);
+  });
+}
+</script>
+</body>
+</html>

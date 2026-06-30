@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tag Parsing &amp;amp; Issue/MR URL Reconstruction — Melissa Magoma</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root {
+    --sage-dark: #2D4A2D;
+    --sage-mid: #5A8A5A;
+    --sage-light: #C8DBC4;
+    --sidebar-bg: #F2F7F2;
+    --body: #374137;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #fafcfa;
+    color: var(--body);
+    padding: 2.5rem 1.5rem;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .back-link {
+    display: inline-block;
+    font-size: 13px;
+    color: var(--sage-mid);
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+  }
+  .back-link:hover { text-decoration: underline; }
+  h1 {
+    font-size: 23px;
+    color: var(--sage-dark);
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--sage-mid);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .description {
+    background: var(--sidebar-bg);
+    border-left: 3px solid var(--sage-mid);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    font-size: 14px;
+    color: var(--body);
+    margin-bottom: 1.75rem;
+  }
+  .code-block {
+    background: #1e1e1e;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(45,74,45,0.15);
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.1rem;
+    background: #161616;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .code-filename {
+    font-size: 12px;
+    color: #9fc99f;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .copy-btn {
+    font-size: 12px;
+    color: #cfe8cf;
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 5px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.16); }
+  .highlight {
+    margin: 0 !important;
+    padding: 1.25rem 1.5rem !important;
+    overflow-x: auto;
+  }
+  .highlight pre {
+    margin: 0 !important;
+    font-family: "SF Mono", Consolas, "Courier New", monospace !important;
+    font-size: 13px !important;
+    line-height: 1.65 !important;
+  }
+  .footer {
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: #94a894;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../README.md" class="back-link">&larr; Back to Portfolio</a>
+  <h1>Tag Parsing &amp;amp; Issue/MR URL Reconstruction</h1>
+  <div class="subtitle">SQL &middot; SNOWFLAKE &middot; PRODUCTION SCHEMA (ANONYMISED)</div>
+  <div class="description">Parses structured Zendesk ticket tags to reconstruct linked GitLab issue and merge request URLs, then enriches each with issue metadata including product group, severity, and priority. Surfaces which GitLab issues and MRs generate the most support ticket volume, used in weekly reporting and escalation prioritisation.</div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-filename">tag_parsing_issue_url_reconstruction.sql</span>
+      <button class="copy-btn" onclick="copyCode()">Copy</button>
+    </div>
+    <div class="highlight" style="background: #202020"><pre style="line-height: 125%;"><span></span><span style="color: #ABABAB; font-style: italic">/*</span>
+<span style="color: #ABABAB; font-style: italic">  Tag Parsing and Issue/MR URL Reconstruction</span>
+<span style="color: #ABABAB; font-style: italic">  --------------------------------------------</span>
+<span style="color: #ABABAB; font-style: italic">  Zendesk tickets carry structured tags encoding linked GitLab issues and MRs</span>
+<span style="color: #ABABAB; font-style: italic">  (e.g. &quot;gitlab-org_gitlab_issue_12345&quot;). This query parses those tags,</span>
+<span style="color: #ABABAB; font-style: italic">  reconstructs the full GitLab URL, and enriches each tag with issue metadata</span>
+<span style="color: #ABABAB; font-style: italic">  including product group, severity, priority, and ticket count.</span>
+
+<span style="color: #ABABAB; font-style: italic">  The join between tag-derived issue numbers and the issue dimension uses</span>
+<span style="color: #ABABAB; font-style: italic">  ROW_NUMBER() to deduplicate when multiple issues share the same number,</span>
+<span style="color: #ABABAB; font-style: italic">  keeping the most recently updated record.</span>
+
+<span style="color: #ABABAB; font-style: italic">  Use case: surfaces which GitLab issues and MRs are generating the most</span>
+<span style="color: #ABABAB; font-style: italic">  support ticket volume in a given period, used in weekly reporting and</span>
+<span style="color: #ABABAB; font-style: italic">  escalation prioritisation.</span>
+
+<span style="color: #ABABAB; font-style: italic">  Schema: anonymised (originally Snowflake production warehouse)</span>
+<span style="color: #ABABAB; font-style: italic">*/</span>
+
+<span style="color: #6EBF26; font-weight: bold">WITH</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_tags_unnested</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Split comma-separated tag strings so each tag gets its own row</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Normalises &quot;_issues_&quot; to &quot;_issue_&quot; to deduplicate tag variants</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">DISTINCT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_ticket.ticket_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">REGEXP_REPLACE(</span><span style="color: #6EBF26; font-weight: bold">TRIM</span><span style="color: #D0D0D0">(tag.value),</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;_issues_&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;_issue_&#39;</span><span style="color: #D0D0D0">)</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">fct_ticket.solved_at</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.dim_ticket</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.fct_ticket</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">dim_ticket.ticket_id</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">fct_ticket.ticket_id,</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LATERAL</span><span style="color: #666"> </span><span style="color: #D0D0D0">SPLIT_TO_TABLE(dim_ticket.ticket_tags,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;,&#39;</span><span style="color: #D0D0D0">)</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">fct_ticket.solved_at</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">BETWEEN</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;2025-12-01&#39;</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;2025-12-31&#39;</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #D0D0D0">ticket_tags_aggregated</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Count tickets per tag and collect ticket IDs</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag,</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">COUNT</span><span style="color: #D0D0D0">(</span><span style="color: #6EBF26; font-weight: bold">DISTINCT</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_id)</span><span style="color: #666">                                              </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_count,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">LISTAGG(</span><span style="color: #6EBF26; font-weight: bold">DISTINCT</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_id,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;, &#39;</span><span style="color: #D0D0D0">)</span><span style="color: #666"> </span><span style="color: #D0D0D0">WITHIN</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">GROUP</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span><span style="color: #6EBF26; font-weight: bold">ORDER</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">BY</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_id)</span><span style="color: #666">   </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_ids</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_tags_unnested</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">(tag</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">ILIKE</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;%_mergerequest_%&#39;</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">OR</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">ILIKE</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;%_issue_%&#39;</span><span style="color: #D0D0D0">)</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">AND</span><span style="color: #666"> </span><span style="color: #D0D0D0">(tag</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">ILIKE</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;%namespace-a%&#39;</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">OR</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">ILIKE</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;%namespace-b%&#39;</span><span style="color: #D0D0D0">)</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">GROUP</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">BY</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #D0D0D0">tag_parsed</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Extract issue/MR number from the tag and derive the URL path</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_count,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_ids,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">REGEXP_SUBSTR(tag,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;[0-9]+$&#39;</span><span style="color: #D0D0D0">)</span><span style="color: #666">                        </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_mr_number,</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">CASE</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">WHEN</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">ILIKE</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;%_issue_%&#39;</span><span style="color: #666">        </span><span style="color: #6EBF26; font-weight: bold">THEN</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;issue&#39;</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">WHEN</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">ILIKE</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;%_mergerequest_%&#39;</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">THEN</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;merge_request&#39;</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">END</span><span style="color: #666">                                                  </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">link_type,</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">REPLACE</span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">REGEXP_REPLACE(tag,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;_(issue|mergerequest)_[0-9]+$&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;&#39;</span><span style="color: #D0D0D0">),</span>
+<span style="color: #666">          </span><span style="color: #ED9D13">&#39;_&#39;</span><span style="color: #D0D0D0">,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;/&#39;</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">)</span><span style="color: #666">                                                    </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">url_path</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_tags_aggregated</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #D0D0D0">tag_with_urls</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Reconstruct full URLs from parsed components</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_count,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ticket_ids,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">link_type,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_mr_number,</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">CASE</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">WHEN</span><span style="color: #666"> </span><span style="color: #D0D0D0">link_type</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;merge_request&#39;</span>
+<span style="color: #666">              </span><span style="color: #6EBF26; font-weight: bold">THEN</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;https://example.com/&#39;</span><span style="color: #666"> </span><span style="color: #D0D0D0">||</span><span style="color: #666"> </span><span style="color: #D0D0D0">url_path</span><span style="color: #666"> </span><span style="color: #D0D0D0">||</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;/-/merge_requests/&#39;</span><span style="color: #666"> </span><span style="color: #D0D0D0">||</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_mr_number</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">ELSE</span><span style="color: #666">    </span><span style="color: #ED9D13">&#39;https://example.com/&#39;</span><span style="color: #666"> </span><span style="color: #D0D0D0">||</span><span style="color: #666"> </span><span style="color: #D0D0D0">url_path</span><span style="color: #666"> </span><span style="color: #D0D0D0">||</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;/-/issues/&#39;</span><span style="color: #666">          </span><span style="color: #D0D0D0">||</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_mr_number</span>
+<span style="color: #666">      </span><span style="color: #6EBF26; font-weight: bold">END</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">reconstructed_url</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag_parsed</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_mr_number</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">IS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NOT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NULL</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #D0D0D0">issue_data</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Pull issue metadata and product categorisation</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.issue_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.issue_title,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.issue_url,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.issue_state,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.issue_type,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.severity,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.priority,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.created_at</span><span style="color: #666">        </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.closed_at</span><span style="color: #666">         </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_closed_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">dim_issue.updated_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.product_group,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.product_stage,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">user_request.product_category,</span>
+<span style="color: #666">      </span><span style="color: #ABABAB; font-style: italic">-- Extract trailing issue number from URL for matching</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">REGEXP_SUBSTR(dim_issue.issue_url,</span><span style="color: #666"> </span><span style="color: #ED9D13">&#39;[0-9]+$&#39;</span><span style="color: #D0D0D0">)</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_number_from_url</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.dim_issue</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">analytics.mart_user_request</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">user_request</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">dim_issue.issue_id</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">user_request.issue_id</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">dim_issue.issue_url</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">IS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NOT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">NULL</span>
+<span style="color: #D0D0D0">),</span>
+
+<span style="color: #6EBF26; font-weight: bold">final</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- Join tags to issue metadata on extracted issue number</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- ROW_NUMBER deduplicates when multiple issues share the same number,</span>
+<span style="color: #666">  </span><span style="color: #ABABAB; font-style: italic">-- keeping the most recently updated record</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">SELECT</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag_with_urls.tag,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag_with_urls.ticket_count,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag_with_urls.ticket_ids,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag_with_urls.link_type,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag_with_urls.issue_mr_number,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">tag_with_urls.reconstructed_url,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_id,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_title,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_state,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_type,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.severity,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.priority,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.product_group,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.product_stage,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.product_category,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_created_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">issue_data.issue_closed_at,</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">ROW_NUMBER()</span><span style="color: #666"> </span><span style="color: #D0D0D0">OVER</span><span style="color: #666"> </span><span style="color: #D0D0D0">(</span>
+<span style="color: #666">          </span><span style="color: #D0D0D0">PARTITION</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">BY</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag_with_urls.tag</span>
+<span style="color: #666">          </span><span style="color: #6EBF26; font-weight: bold">ORDER</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">BY</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.updated_at</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">DESC</span><span style="color: #666"> </span><span style="color: #D0D0D0">NULLS</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">LAST</span>
+<span style="color: #666">      </span><span style="color: #D0D0D0">)</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">AS</span><span style="color: #666"> </span><span style="color: #D0D0D0">rn</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag_with_urls</span>
+<span style="color: #666">  </span><span style="color: #6EBF26; font-weight: bold">LEFT</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">JOIN</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data</span>
+<span style="color: #666">    </span><span style="color: #6EBF26; font-weight: bold">ON</span><span style="color: #666"> </span><span style="color: #D0D0D0">tag_with_urls.issue_mr_number</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #D0D0D0">issue_data.issue_number_from_url</span>
+<span style="color: #D0D0D0">)</span>
+
+<span style="color: #6EBF26; font-weight: bold">SELECT</span><span style="color: #666"> </span><span style="color: #D0D0D0">*</span>
+<span style="color: #6EBF26; font-weight: bold">FROM</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">final</span>
+<span style="color: #6EBF26; font-weight: bold">WHERE</span><span style="color: #666"> </span><span style="color: #D0D0D0">rn</span><span style="color: #666"> </span><span style="color: #D0D0D0">=</span><span style="color: #666"> </span><span style="color: #51B2FD">1</span>
+<span style="color: #6EBF26; font-weight: bold">ORDER</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">BY</span><span style="color: #666"> </span><span style="color: #D0D0D0">ticket_count</span><span style="color: #666"> </span><span style="color: #6EBF26; font-weight: bold">DESC</span><span style="color: #D0D0D0">;</span>
+</pre></div>
+
+  </div>
+  <div class="footer">Schema and identifiers anonymised for public portfolio use.</div>
+</div>
+<script>
+function copyCode() {
+  const codeEl = document.querySelector('.highlight pre');
+  const text = codeEl.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = original, 1500);
+  });
+}
+</script>
+</body>
+</html>
